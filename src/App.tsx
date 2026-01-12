@@ -256,8 +256,8 @@ function App() {
 
       {/* Map Area */}
       <div className="flex-1 relative">
-        <div className="absolute top-4 right-4 z-[400] bg-zinc-900/90 backdrop-blur-md p-2 rounded-lg border border-zinc-700 text-xs text-zinc-300 flex items-center gap-2 shadow-lg">
-          <Calculator size={14} className="text-indigo-400" />
+        <div className="absolute top-4 right-4 z-[400] bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-300 flex items-center gap-2 shadow-lg">
+          <Calculator size={14} className="text-indigo-500 dark:text-indigo-400" />
           <span>{results.length} routes calculated</span>
         </div>
         <MapComponent

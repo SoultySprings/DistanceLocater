@@ -4,10 +4,11 @@ import InputPanel from './components/InputPanel';
 import { Header } from './components/Header';
 import ResultsPanel from './components/ResultsPanel';
 import WelcomeScreen from './components/WelcomeScreen';
+import HelpButton from './components/HelpButton';
 import type { LocationPoint, DistanceResult } from './types';
 import { geocodeAddress, reverseGeocode } from './utils/geocoding';
 import { calculateRoute, normalizeLng } from './utils/distanceCalculator';
-import { Calculator } from 'lucide-react';
+import { Calculator, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 // Simple UUID generator since we didn't install uuid package
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -38,6 +39,7 @@ function App() {
   const [results, setResults] = useState<DistanceResult[]>([]);
   const [showWelcome, setShowWelcome] = useState(true);
   const [fitBoundsTrigger, setFitBoundsTrigger] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Persist state
   useEffect(() => {
@@ -261,38 +263,66 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-50 font-sans transition-colors duration-300">
+    <div className="flex flex-col-reverse md:flex-row h-screen w-screen overflow-hidden bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-50 font-sans transition-colors duration-300">
 
-      {/* Sidebar */}
-      <div className="w-[400px] flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/50 z-[500] shadow-2xl h-full backdrop-blur-md transition-colors duration-300">
-        <Header />
+      {/* Sidebar Container */}
+      <div
+        className={`${isSidebarOpen
+          ? 'h-[50%] md:h-full w-full md:w-[400px]'
+          : 'h-0 md:h-full w-full md:w-0'
+          } relative flex flex-col border-t md:border-t-0 md:border-r border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/50 z-[500] shadow-2xl backdrop-blur-md transition-all duration-300 ease-in-out overflow-hidden shrink-0`}
+      >
+        <div className="flex-1 flex flex-col overflow-hidden w-full md:w-[400px]"> {/* Fixed width inner container to prevent layout shift during transition */}
+          <Header />
 
-        <div className="flex-1 overflow-hidden flex flex-col p-6 gap-6">
-          <div className="flex-1 overflow-hidden">
-            <InputPanel
-              origins={origins}
-              destinations={destinations}
-              setOrigins={setOrigins}
-              setDestinations={setDestinations}
-              handleAddressChange={updatePoint}
-              handleAddressBlur={handleBlur}
-              addPoint={addPoint}
-              removePoint={removePoint}
-              mode={mode}
-              setMode={setMode}
-            />
-          </div>
+          <div className="flex-1 overflow-hidden flex flex-col p-6 gap-6">
+            <div className="flex-1 overflow-hidden">
+              <InputPanel
+                origins={origins}
+                destinations={destinations}
+                setOrigins={setOrigins}
+                setDestinations={setDestinations}
+                handleAddressChange={updatePoint}
+                handleAddressBlur={handleBlur}
+                addPoint={addPoint}
+                removePoint={removePoint}
+                mode={mode}
+                setMode={setMode}
+              />
+            </div>
 
-          <div className="h-[1px] bg-zinc-200 dark:bg-zinc-800 w-full"></div>
+            <div className="h-[1px] bg-zinc-200 dark:bg-zinc-800 w-full"></div>
 
-          <div className="h-1/3 min-h-[200px] overflow-hidden">
-            <ResultsPanel results={results} />
+            <div className="h-1/3 min-h-[200px] overflow-hidden">
+              <ResultsPanel results={results} />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Map Area */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative h-full">
+        {/* Toggle Button - Floating on top of map */}
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute z-[510] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-2 rounded-lg shadow-md hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-all 
+            md:top-1/2 md:left-0 md:-translate-y-1/2 md:border-l-0 md:rounded-l-none md:rounded-r-lg
+            bottom-6 left-6 md:bottom-auto"
+          title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {isSidebarOpen ? (
+            <>
+              <PanelLeftClose size={18} className="hidden md:block" />
+              <PanelLeftOpen size={18} className="md:hidden rotate-90" /> {/* Rotate for bottom sheet aesthetic */}
+            </>
+          ) : (
+            <>
+              <PanelLeftOpen size={18} className="hidden md:block" />
+              <PanelLeftClose size={18} className="md:hidden rotate-90" />
+            </>
+          )}
+        </button>
+
         <div className="absolute top-4 right-4 z-[400] bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-300 flex items-center gap-2 shadow-lg">
           <Calculator size={14} className="text-indigo-500 dark:text-indigo-400" />
           <span>{results.length} routes calculated</span>
@@ -308,6 +338,8 @@ function App() {
       </div>
 
       {showWelcome && <WelcomeScreen onStart={() => setShowWelcome(false)} />}
+
+      <HelpButton />
 
     </div>
   );

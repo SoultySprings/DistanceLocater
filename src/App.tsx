@@ -170,15 +170,16 @@ function App() {
 
 
   // Recalculate results when points change
+  // Recalculate results when points change
   useEffect(() => {
+    let isMounted = true;
+
     const calculateAllRoutes = async () => {
       const newResults: DistanceResult[] = [];
 
       if (mode === 'one-to-many') {
-        // Use the first origin (should only be one)
         const origin = origins[0];
         if (origin && origin.coords) {
-          // Use Promise.all to fetch routes in parallel
           const promises = destinations.map(async (dest) => {
             if (dest.coords) {
               const routeData = await calculateRoute(origin.coords!, dest.coords!);
@@ -195,7 +196,6 @@ function App() {
           resolved.forEach(r => { if (r) newResults.push(r); });
         }
       } else {
-        // Many to Many: All Origins to All Destinations
         const promises: Promise<DistanceResult | null>[] = [];
 
         origins.forEach(origin => {
@@ -216,10 +216,16 @@ function App() {
         resolved.forEach(r => { if (r) newResults.push(r); });
       }
 
-      setResults(newResults);
+      if (isMounted) {
+        setResults(newResults);
+      }
     };
 
     calculateAllRoutes();
+
+    return () => {
+      isMounted = false;
+    };
   }, [origins, destinations, mode]);
 
   // Handle Mode Switch Logic

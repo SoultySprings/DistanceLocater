@@ -16,16 +16,23 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
-# OS
 .DS_Store
+*.suo
+*.ntvs
+*.njsproj
+*.sln
+*.sw?
+
+# OS
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Environment
 .env
 .env.local
+.env.*.local
 
-# Editor
-.vscode
-.idea
-*.suo
-*.sln
+# Vite
+coverage/
+*.tsbuildinfo

@@ -10,4 +10,7 @@ export interface DistanceResult {
     origin: LocationPoint;
     destination: LocationPoint;
     distance: number;
+    path?: [number, number][];
+    isRoad?: boolean;
+    errorReason?: string;
 }

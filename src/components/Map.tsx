@@ -5,36 +5,25 @@ import 'leaflet/dist/leaflet.css';
 import type { LocationPoint, DistanceResult } from '../types';
 import { useTheme } from '../hooks/useTheme';
 
-// Fix for default marker icon
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+// Custom icons using DivIcon for robustness
+const originIcon = new L.DivIcon({
+    className: 'bg-transparent',
+    html: `<div class="w-6 h-6 rounded-full bg-emerald-500 border-2 border-white shadow-lg shadow-black/20 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+             <div class="w-2 h-2 rounded-full bg-white"></div>
+           </div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12]
 });
 
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// Custom icons
-const originIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
-
-const destIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+const destIcon = new L.DivIcon({
+    className: 'bg-transparent',
+    html: `<div class="w-6 h-6 rounded-full bg-rose-500 border-2 border-white shadow-lg shadow-black/20 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+             <div class="w-2 h-2 rounded-full bg-white"></div>
+           </div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12]
 });
 
 interface MapProps {
@@ -43,12 +32,20 @@ interface MapProps {
     results: DistanceResult[];
     onAddPoint: (lat: number, lng: number, type: 'origin' | 'destination') => void;
     onUpdatePoint?: (id: string, lat: number, lng: number) => void;
+    fitBoundsTrigger: number;
 }
 
-const FitBounds: React.FC<{ points: LocationPoint[] }> = ({ points }) => {
+interface FitBoundsProps {
+    points: LocationPoint[];
+    trigger: number;
+}
+
+const FitBounds: React.FC<FitBoundsProps> = ({ points, trigger }) => {
     const map = useMap();
 
     useEffect(() => {
+        if (trigger === 0) return; // Initial skip or no action
+
         const validPoints = points
             .filter(p => p.coords)
             .map(p => [p.coords!.lat, p.coords!.lng] as [number, number]);
@@ -62,7 +59,7 @@ const FitBounds: React.FC<{ points: LocationPoint[] }> = ({ points }) => {
                 duration: 1.5 // Slower animation (seconds)
             });
         }
-    }, [points, map]);
+    }, [trigger, map]); // Only run when trigger changes
 
     return null;
 };
@@ -147,7 +144,7 @@ const MapInteraction: React.FC<{ onAddPoint: (lat: number, lng: number, type: 'o
 
 interface DraggableMarkerProps {
     point: LocationPoint;
-    icon: L.Icon;
+    icon: L.Icon | L.DivIcon;
     onUpdate: (id: string, lat: number, lng: number) => void;
 }
 
@@ -181,22 +178,64 @@ const DraggableMarker: React.FC<DraggableMarkerProps> = ({ point, icon, onUpdate
     );
 };
 
-const MapComponent: React.FC<MapProps> = ({ origins, destinations, results, onAddPoint, onUpdatePoint }) => {
+// Component to save map view to localStorage
+const MapEvents: React.FC = () => {
+    const map = useMap();
+
+    useMapEvents({
+        moveend: () => {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            localStorage.setItem('map_view', JSON.stringify({ center: [center.lat, center.lng], zoom }));
+        },
+        zoomend: () => {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            localStorage.setItem('map_view', JSON.stringify({ center: [center.lat, center.lng], zoom }));
+        }
+    });
+
+    return null;
+};
+
+const MapComponent: React.FC<MapProps> = ({ origins, destinations, results, onAddPoint, onUpdatePoint, fitBoundsTrigger }) => {
     const { theme } = useTheme();
     const allPoints = [...origins, ...destinations];
 
     const lightTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
     const darkTiles = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 
+    // Initialize from localStorage
+    const savedView = useMemo(() => {
+        try {
+            const saved = localStorage.getItem('map_view');
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch (e) {
+            console.error("Failed to parse map view", e);
+        }
+        return { center: [20, 0], zoom: 2 };
+    }, []);
+
     return (
-        <MapContainer center={[20, 0] as [number, number]} zoom={2} className="h-full w-full bg-zinc-50 dark:bg-black transition-colors duration-300" style={{ background: 'transparent' }}>
+        <MapContainer
+            center={savedView.center}
+            zoom={savedView.zoom}
+            minZoom={2}
+            maxBounds={[[-90, -180], [90, 180]]}
+            maxBoundsViscosity={1.0}
+            className="h-full w-full bg-zinc-50 dark:bg-black transition-colors duration-300"
+            style={{ background: 'transparent' }}
+        >
             <TileLayer
                 key={theme}
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 url={theme === 'dark' ? darkTiles : lightTiles}
             />
 
-            <FitBounds points={allPoints} />
+            <FitBounds points={allPoints} trigger={fitBoundsTrigger} />
+            <MapEvents />
             <MapInteraction onAddPoint={onAddPoint} />
 
             {origins.map(point => (
@@ -217,16 +256,35 @@ const MapComponent: React.FC<MapProps> = ({ origins, destinations, results, onAd
                 />
             ))}
 
-            {results.map((res, i) => res.origin.coords && res.destination.coords && (
-                <Polyline
-                    key={i}
-                    positions={[
-                        [res.origin.coords.lat, res.origin.coords.lng],
-                        [res.destination.coords.lat, res.destination.coords.lng]
-                    ]}
-                    pathOptions={{ color: '#6366f1', weight: 4, opacity: 0.8, dashArray: '10, 10' }}
-                />
-            ))}
+            {results.map((res, i) => {
+                if (!res.origin.coords || !res.destination.coords) return null;
+
+                const positions = res.path ? res.path : [
+                    [res.origin.coords.lat, res.origin.coords.lng],
+                    [res.destination.coords.lat, res.destination.coords.lng]
+                ] as [number, number][];
+
+                return (
+                    <React.Fragment key={`${res.origin.id}-${res.destination.id}-${i}`}>
+                        <Polyline
+                            positions={positions}
+                            pathOptions={{
+                                color: res.isRoad ? '#6366f1' : '#f43f5e',
+                                weight: 4,
+                                opacity: 0.8,
+                                dashArray: res.isRoad ? undefined : '10, 10'
+                            }}
+                        />
+                        {!res.isRoad && res.errorReason && (
+                            <Popup position={res.origin.coords}>
+                                <div className="text-xs text-rose-500">
+                                    Routing Failed: {res.errorReason}
+                                </div>
+                            </Popup>
+                        )}
+                    </React.Fragment>
+                );
+            })}
         </MapContainer>
     );
 };

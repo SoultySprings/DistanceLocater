@@ -6,7 +6,7 @@ import ResultsPanel from './components/ResultsPanel';
 import WelcomeScreen from './components/WelcomeScreen';
 import type { LocationPoint, DistanceResult } from './types';
 import { geocodeAddress, reverseGeocode } from './utils/geocoding';
-import { calculateDistance } from './utils/distanceCalculator';
+import { calculateRoute, normalizeLng } from './utils/distanceCalculator';
 import { Calculator } from 'lucide-react';
 
 // Simple UUID generator since we didn't install uuid package
@@ -14,14 +14,22 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 const initialPoint: LocationPoint = { id: generateId(), address: '', coords: null, loading: false };
 
+// Helper to normalize a point
+const normalizePoint = (p: LocationPoint): LocationPoint => ({
+  ...p,
+  coords: p.coords ? { ...p.coords, lng: normalizeLng(p.coords.lng) } : null
+});
+
 function App() {
   const [origins, setOrigins] = useState<LocationPoint[]>(() => {
     const saved = localStorage.getItem('origins');
-    return saved ? JSON.parse(saved) : [{ ...initialPoint }];
+    const points = saved ? JSON.parse(saved) : [{ ...initialPoint }];
+    return points.map(normalizePoint);
   });
   const [destinations, setDestinations] = useState<LocationPoint[]>(() => {
     const saved = localStorage.getItem('destinations');
-    return saved ? JSON.parse(saved) : [{ ...initialPoint, id: generateId() }];
+    const points = saved ? JSON.parse(saved) : [{ ...initialPoint, id: generateId() }];
+    return points.map(normalizePoint);
   });
   const [mode, setMode] = useState<'one-to-many' | 'many-to-many'>(() => {
     const saved = localStorage.getItem('mode');
@@ -29,6 +37,7 @@ function App() {
   });
   const [results, setResults] = useState<DistanceResult[]>([]);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [fitBoundsTrigger, setFitBoundsTrigger] = useState(0);
 
   // Persist state
   useEffect(() => {
@@ -78,10 +87,18 @@ function App() {
     // Geocode
     const coords = await geocodeAddress(point.address);
 
-    setPoints(prev => prev.map(p => p.id === id ? { ...p, loading: false, coords } : p));
+    setPoints(prev => prev.map(p => p.id === id ? {
+      ...p,
+      loading: false,
+      coords: coords ? { ...coords, lng: normalizeLng(coords.lng) } : null
+    } : p));
+
+    // Trigger auto-fit on successful geocode
+    if (coords) setFitBoundsTrigger(prev => prev + 1);
   };
 
   const handleMapPointAdd = async (lat: number, lng: number, type: 'origin' | 'destination') => {
+    const normLng = normalizeLng(lng);
     const isOrigin = type === 'origin';
     const setTargetList = isOrigin ? setOrigins : setDestinations;
     const currentList = isOrigin ? origins : destinations;
@@ -103,7 +120,7 @@ function App() {
     const tempPoint: LocationPoint = {
       id: targetId,
       address: 'Fetching address...',
-      coords: { lat, lng },
+      coords: { lat, lng: normLng },
       loading: true
     };
 
@@ -121,16 +138,19 @@ function App() {
       return [...prev, tempPoint];
     });
 
+    // Trigger auto-fit on map add
+    setFitBoundsTrigger(prev => prev + 1);
+
     // 2. Resolve Address Asynchronously
     try {
-      const address = await reverseGeocode(lat, lng);
+      const address = await reverseGeocode(lat, normLng);
       // Fallback to lat/lng string if address is null/empty
-      const finalAddress = address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      const finalAddress = address || `${lat.toFixed(6)}, ${normLng.toFixed(6)}`;
 
       setTargetList(prev => prev.map(p => p.id === targetId ? {
         ...p,
         address: finalAddress,
-        coords: { lat, lng, name: finalAddress },
+        coords: { lat, lng: normLng, name: finalAddress },
         loading: false
       } : p));
 
@@ -138,7 +158,7 @@ function App() {
       console.error("Geocoding failed", e);
       setTargetList(prev => prev.map(p => p.id === targetId ? {
         ...p,
-        address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+        address: `${lat.toFixed(6)}, ${normLng.toFixed(6)}`,
         loading: false
       } : p));
     }
@@ -147,41 +167,55 @@ function App() {
 
   // Recalculate results when points change
   useEffect(() => {
-    const newResults: DistanceResult[] = [];
+    const calculateAllRoutes = async () => {
+      const newResults: DistanceResult[] = [];
 
-    if (mode === 'one-to-many') {
-      // Use the first origin (should only be one)
-      const origin = origins[0];
-      if (origin && origin.coords) {
-        destinations.forEach(dest => {
-          if (dest.coords) {
-            newResults.push({
-              origin,
-              destination: dest,
-              distance: calculateDistance(origin.coords!, dest.coords!)
+      if (mode === 'one-to-many') {
+        // Use the first origin (should only be one)
+        const origin = origins[0];
+        if (origin && origin.coords) {
+          // Use Promise.all to fetch routes in parallel
+          const promises = destinations.map(async (dest) => {
+            if (dest.coords) {
+              const routeData = await calculateRoute(origin.coords!, dest.coords!);
+              return {
+                origin,
+                destination: dest,
+                ...routeData
+              };
+            }
+            return null;
+          });
+
+          const resolved = await Promise.all(promises);
+          resolved.forEach(r => { if (r) newResults.push(r); });
+        }
+      } else {
+        // Many to Many: All Origins to All Destinations
+        const promises: Promise<DistanceResult | null>[] = [];
+
+        origins.forEach(origin => {
+          if (origin.coords) {
+            destinations.forEach(dest => {
+              if (dest.coords) {
+                promises.push(calculateRoute(origin.coords!, dest.coords!).then(routeData => ({
+                  origin,
+                  destination: dest,
+                  ...routeData
+                })));
+              }
             });
           }
         });
-      }
-    } else {
-      // Many to Many: All Origins to All Destinations
-      origins.forEach(origin => {
-        if (origin.coords) {
-          destinations.forEach(dest => {
-            if (dest.coords) {
-              newResults.push({
-                origin,
-                destination: dest,
-                distance: calculateDistance(origin.coords!, dest.coords!)
-              });
-            }
-          });
-        }
-      });
-    }
 
-    // Sort logic ? Maybe separate action. For now just set.
-    setResults(newResults);
+        const resolved = await Promise.all(promises);
+        resolved.forEach(r => { if (r) newResults.push(r); });
+      }
+
+      setResults(newResults);
+    };
+
+    calculateAllRoutes();
   }, [origins, destinations, mode]);
 
   // Handle Mode Switch Logic
@@ -193,6 +227,7 @@ function App() {
   }, [mode]);
 
   const handlePointUpdate = async (id: string, lat: number, lng: number) => {
+    const normLng = normalizeLng(lng);
     // Find which list the point belongs to
     const isOrigin = origins.some(p => p.id === id);
     const setList = isOrigin ? setOrigins : setDestinations;
@@ -200,26 +235,26 @@ function App() {
     // Optimistic update
     setList(prev => prev.map(p => p.id === id ? {
       ...p,
-      coords: { lat, lng },
+      coords: { lat, lng: normLng },
       address: 'Updating location...',
       loading: true
     } : p));
 
     // Reverse Geocode
     try {
-      const address = await reverseGeocode(lat, lng);
-      const finalAddress = address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      const address = await reverseGeocode(lat, normLng);
+      const finalAddress = address || `${lat.toFixed(6)}, ${normLng.toFixed(6)}`;
 
       setList(prev => prev.map(p => p.id === id ? {
         ...p,
         address: finalAddress,
-        coords: { lat, lng, name: finalAddress },
+        coords: { lat, lng: normLng, name: finalAddress },
         loading: false
       } : p));
     } catch (e) {
       setList(prev => prev.map(p => p.id === id ? {
         ...p,
-        address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+        address: `${lat.toFixed(6)}, ${normLng.toFixed(6)}`,
         loading: false
       } : p));
     }
@@ -268,6 +303,7 @@ function App() {
           results={results}
           onAddPoint={handleMapPointAdd}
           onUpdatePoint={handlePointUpdate}
+          fitBoundsTrigger={fitBoundsTrigger}
         />
       </div>
 

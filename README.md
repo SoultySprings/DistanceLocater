@@ -6,8 +6,13 @@ A premium, interactive web application designed to calculate distances between m
 
 ## Features
 
-*   **Interactive Global Map**: Built with Leaflet & OpenStreetMap, supporting infinite panning and smooth zoom.
+*   **Interactive Global Map**: Built with Leaflet & OpenStreetMap, now with **Smart-locked World View** to prevent coordinate issues.
+*   **Robust Routing**: Powered by OSRM with automatic coordinate normalization and fallback strategies.
 *   **Smart Geocoding**: Automatically converts addresses to coordinates and vice-versa using the Nominatim API.
+*   **Drag-and-Drop Interaction**:
+    *   Right-click anywhere to add Origins or Destinations.
+    *   Drag markers to instantly recalculate routes.
+    *   Robust "DivIcon" markers for high visibility.
 *   **Flexible Routing Modes**:
     *   **One-to-Many**: Calculate distances from a central hub to multiple destinations.
     *   **Many-to-Many**: Compute a full matrix of distances between multiple origins and destinations.

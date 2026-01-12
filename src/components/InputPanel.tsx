@@ -19,8 +19,12 @@ const InputSection: React.FC<InputSectionProps> = ({ title, points, onAdd, onRem
         <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/50 backdrop-blur-sm">
             <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{title}</h3>
             <button
-                onClick={onAdd}
-                className="p-1.5 bg-white dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all border border-zinc-200 dark:border-zinc-700 hover:border-indigo-200 dark:hover:border-indigo-500/30 shadow-sm"
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation(); // Prevent bubbling
+                    onAdd();
+                }}
+                className="relative z-10 p-1.5 bg-white dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all border border-zinc-200 dark:border-zinc-700 hover:border-indigo-200 dark:hover:border-indigo-500/30 shadow-sm cursor-pointer"
                 title="Add location"
             >
                 <Plus size={14} />

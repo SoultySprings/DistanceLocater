@@ -17,9 +17,9 @@ const HelpButton: React.FC = () => {
 
             {/* Modal Overlay */}
             {isOpen && (
-                <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in-up duration-300">
                     <div
-                        className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200"
+                        className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 animate-fade-in-up delay-100"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
@@ -44,26 +44,32 @@ const HelpButton: React.FC = () => {
                         {/* Content */}
                         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
 
-                            <Step
-                                icon={MapPin}
-                                title="1. Add Locations"
-                                description="Enter starting points (Origins) and destinations. You can type addresses or click directly on the map."
-                                color="indigo"
-                            />
+                            <div className="opacity-0 animate-fade-in-up delay-100">
+                                <Step
+                                    icon={MapPin}
+                                    title="1. Add Locations"
+                                    description="Enter starting points (Origins) and destinations. You can type addresses or click directly on the map."
+                                    color="indigo"
+                                />
+                            </div>
 
-                            <Step
-                                icon={Navigation}
-                                title="2. Choose Mode"
-                                description="Switch between 'One-to-Many' (one origin to multiple destinations) or 'Many-to-Many' (all origins to all destinations)."
-                                color="purple"
-                            />
+                            <div className="opacity-0 animate-fade-in-up delay-200">
+                                <Step
+                                    icon={Navigation}
+                                    title="2. Choose Mode"
+                                    description="Switch between 'One-to-Many' (one origin to multiple destinations) or 'Many-to-Many' (all origins to all destinations)."
+                                    color="purple"
+                                />
+                            </div>
 
-                            <Step
-                                icon={Calculator}
-                                title="3. Calculate"
-                                description="Distances and routes are calculated automatically as you add valid locations. View results in the sidebar."
-                                color="emerald"
-                            />
+                            <div className="opacity-0 animate-fade-in-up delay-300">
+                                <Step
+                                    icon={Calculator}
+                                    title="3. Calculate"
+                                    description="Distances and routes are calculated automatically as you add valid locations. View results in the sidebar."
+                                    color="emerald"
+                                />
+                            </div>
 
                         </div>
 
@@ -71,7 +77,7 @@ const HelpButton: React.FC = () => {
                         <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800 text-center">
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="w-full py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-medium hover:opacity-90 transition-opacity"
+                                className="w-full py-2.5 bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-black rounded-xl font-medium hover:opacity-90 transition-opacity opacity-0 animate-fade-in-up delay-400"
                             >
                                 Got it
                             </button>

@@ -51,7 +51,9 @@ function App() {
   const addPoint = (type: 'origin' | 'destination') => {
     const newPoint = { id: generateId(), address: '', coords: null, loading: false };
     if (type === 'origin') {
-      if (mode === 'one-to-many' && origins.length >= 1) return;
+      if (mode === 'one-to-many' && origins.length >= 1) {
+        setMode('many-to-many');
+      }
       setOrigins(prev => [...prev, newPoint]);
     } else {
       setDestinations(prev => [...prev, newPoint]);

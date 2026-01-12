@@ -3,6 +3,7 @@ import MapComponent from './components/Map';
 import InputPanel from './components/InputPanel';
 import { Header } from './components/Header';
 import ResultsPanel from './components/ResultsPanel';
+import WelcomeScreen from './components/WelcomeScreen';
 import type { LocationPoint, DistanceResult } from './types';
 import { geocodeAddress, reverseGeocode } from './utils/geocoding';
 import { calculateDistance } from './utils/distanceCalculator';
@@ -27,6 +28,7 @@ function App() {
     return (saved as 'one-to-many' | 'many-to-many') || 'one-to-many';
   });
   const [results, setResults] = useState<DistanceResult[]>([]);
+  const [showWelcome, setShowWelcome] = useState(true);
 
   // Persist state
   useEffect(() => {
@@ -268,6 +270,8 @@ function App() {
           onUpdatePoint={handlePointUpdate}
         />
       </div>
+
+      {showWelcome && <WelcomeScreen onStart={() => setShowWelcome(false)} />}
 
     </div>
   );
